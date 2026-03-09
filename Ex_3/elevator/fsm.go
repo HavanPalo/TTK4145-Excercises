@@ -98,7 +98,7 @@ func OnFloorArrival(commands chan Command_t, doorTimerStart chan time.Duration, 
             SetMotorDirection(MD_Stop)
             SetDoorOpenLamp(true)
 
-            commands <- SetMotorDirection_t{MotorDirection: MD_Stop}
+            //commands <- SetMotorDirection_t{MotorDirection: MD_Stop}
             commands <- SetElevatorBehaviour_t{ElevatorBehaviour: EB_DoorOpen}
 
             doorTimerStop <- struct{}{}
