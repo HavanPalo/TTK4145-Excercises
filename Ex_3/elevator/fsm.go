@@ -47,22 +47,28 @@ func OnRequestButtonPress(commands chan Command_t, doorTimerStart chan time.Dura
         commands <- SetRequest_t{RequestValue: true, Floor: btn_floor, Button: btn_type}
         e_state = GetState(commands)
         var pair MotorDirectionBehaviourPair_t = requests_choose_direction(e_state);
-        commands <- SetMotorDirection_t{MotorDirection: pair.MotorDirection}
-        commands <- SetElevatorBehaviour_t{ElevatorBehaviour: pair.ElevatorBehaviour}
+        //commands <- SetMotorDirection_t{MotorDirection: pair.MotorDirection}
+        //commands <- SetElevatorBehaviour_t{ElevatorBehaviour: pair.ElevatorBehaviour}
         switch(pair.ElevatorBehaviour){
         case EB_DoorOpen:
             SetDoorOpenLamp(true)
-            
             doorTimerStart <- e_state.DoorOpenDuration
+
             e_state = requests_clear_at_current_floor(e_state);
             commands <- SetState_t{ElevatorState: e_state}
 
+            commands <- SetMotorDirection_t{MotorDirection: pair.MotorDirection}
+            commands <- SetElevatorBehaviour_t{ElevatorBehaviour: pair.ElevatorBehaviour}
+
         case EB_Moving:
+            commands <- SetMotorDirection_t{MotorDirection: pair.MotorDirection}
+            commands <- SetElevatorBehaviour_t{ElevatorBehaviour: pair.ElevatorBehaviour}
             SetMotorDirection((pair.MotorDirection))
             break;
             
         case EB_Idle:
-            break;
+            commands <- SetMotorDirection_t{MotorDirection: pair.MotorDirection}
+            commands <- SetElevatorBehaviour_t{ElevatorBehaviour: pair.ElevatorBehaviour}
         }
         break;
     }
@@ -86,11 +92,12 @@ func OnFloorArrival(commands chan Command_t, doorTimerStart chan time.Duration, 
     if e_state.ElevatorBehaviour == EB_Moving {
         if requests_should_stop(e_state) {
 
+            e_state = requests_clear_at_current_floor(e_state) 
+            commands <- SetState_t{ElevatorState: e_state}
+
             SetMotorDirection(MD_Stop)
             SetDoorOpenLamp(true)
 
-            e_state = requests_clear_at_current_floor(e_state) 
-            commands <- SetState_t{ElevatorState: e_state}
             commands <- SetMotorDirection_t{MotorDirection: MD_Stop}
             commands <- SetElevatorBehaviour_t{ElevatorBehaviour: EB_DoorOpen}
 
@@ -111,25 +118,40 @@ func OnDoorTimeout(commands chan Command_t, doorTimerStart chan time.Duration, d
     switch(e_state.ElevatorBehaviour){
     case EB_DoorOpen:
         var pair MotorDirectionBehaviourPair_t = requests_choose_direction(e_state);
-        commands <- SetMotorDirection_t{MotorDirection: pair.MotorDirection}
-        commands <- SetElevatorBehaviour_t{ElevatorBehaviour: pair.ElevatorBehaviour}
-        e_state = GetState(commands)
-        switch(e_state.ElevatorBehaviour){
+        //commands <- SetMotorDirection_t{MotorDirection: pair.MotorDirection}
+        //commands <- SetElevatorBehaviour_t{ElevatorBehaviour: pair.ElevatorBehaviour}
+        //e_state = GetState(commands)
+
+        switch(pair.ElevatorBehaviour){
         case EB_DoorOpen:
+
             doorTimerStop <- struct{}{}
             doorTimerStart <- e_state.DoorOpenDuration
+
             e_state = requests_clear_at_current_floor(e_state);
             commands <- SetState_t{ElevatorState: e_state}
             set_all_lights(e_state);
-            break;
-        case EB_Moving, EB_Idle:
+            
+        case EB_Moving:
+            commands <- SetMotorDirection_t{MotorDirection: pair.MotorDirection}
+            commands <- SetElevatorBehaviour_t{ElevatorBehaviour: pair.ElevatorBehaviour}
+
             SetDoorOpenLamp(false)
-            SetMotorDirection(pair.MotorDirection);
-            set_all_lights(e_state);
-            break;
+            SetMotorDirection(pair.MotorDirection)
+
+            e_state = GetState(commands)
+            set_all_lights(e_state)
+        case EB_Idle:
+            commands <- SetMotorDirection_t{MotorDirection: pair.MotorDirection}
+            commands <- SetElevatorBehaviour_t{ElevatorBehaviour: pair.ElevatorBehaviour}
+
+            SetDoorOpenLamp(false)
+            SetMotorDirection(MD_Stop)
+
+            e_state = GetState(commands)
+            set_all_lights(e_state)
         }
         
-        break;
     default:
         break;
     }
